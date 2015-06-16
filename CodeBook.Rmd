@@ -1,0 +1,121 @@
+---
+title: "CodeBook"
+author: "Kim Monks"
+date: "Tuesday, June 16, 2015"
+output: html_document
+---
+
+Data Set Information:
+The experiments have been carried out with a group of 30 volunteers within an age bracket of 19-48 years. Each person performed six activities (WALKING, WALKING_UPSTAIRS, WALKING_DOWNSTAIRS, SITTING, STANDING, LAYING) wearing a smartphone (Samsung Galaxy S II) on the waist. Using its embedded accelerometer and gyroscope, we captured 3-axial linear acceleration and 3-axial angular velocity at a constant rate of 50Hz. The experiments have been video-recorded to label the data manually. The obtained dataset has been randomly partitioned into two sets, where 70% of the volunteers was selected for generating the training data and 30% the test data. 
+
+The sensor signals (accelerometer and gyroscope) were pre-processed by applying noise filters and then sampled in fixed-width sliding windows of 2.56 sec and 50% overlap (128 readings/window). The sensor acceleration signal, which has gravitational and body motion components, was separated using a Butterworth low-pass filter into body acceleration and gravity. The gravitational force is assumed to have only low frequency components, therefore a filter with 0.3 Hz cutoff frequency was used. From each window, a vector of features was obtained by calculating variables from the time and frequency domain.
+
+Check the README.txt file for further details about this dataset. 
+
+A video of the experiment including an example of the 6 recorded activities with one of the participants can be seen in the following link: [Web Link]
+
+Attribute Information:
+For each record in the dataset it is provided: 
+- Triaxial acceleration from the accelerometer (total acceleration) and the estimated body acceleration. 
+- Triaxial Angular velocity from the gyroscope. 
+- A 561-feature vector with time and frequency domain variables. 
+- Its activity label. 
+- An identifier of the subject who carried out the experiment.
+The mean of each reading is stored.
+
+
+```{r}
+summary(cars)
+
+
+# Load the data
+
+
+filesPath <- "C:/Users/user/Desktop/Coursera/GettingData/Project/data/UCI HAR Dataset"
+setwd(filesPath)
+
+if(!file.exists(filesPath)){
+  dir.create(filesPath)
+  fileUrl <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+  download.file(fileUrl,destfile="C:/Users/user/Desktop/Coursera/Getting Data/Project/data/UCI HAR DataSet.zip")
+
+  ###Unzip DataSet to /data directory
+  unzip(zipfile="C:/Users/user/Desktop/Coursera/Getting Data/Project/data/UCI HAR DataSet.zip",exdir="C:/Users/user/Desktop/Coursera/Getting Data/Project/data")
+}
+
+
+# Read files
+
+subjectTrain <- read.table("train/subject_train.txt")
+xTrain <- read.table("train/x_train.txt")
+yTrain <- read.table("train/y_train.txt")
+subjectTest <- read.table("test/subject_test.txt")
+xTest <- read.table("test/x_test.txt")
+yTest <- read.table("test/y_test.txt")
+# Nasme the columns
+dataFeatures <- read.table("features.txt")
+colnames(xTest) <- dataFeatures$V2
+colnames(xTrain) <- dataFeatures$V2
+
+#1.  Merges the training and the test sets to create one data set.
+# Merge Rows
+dataHAR <- rbind(xTrain, xTest)
+subjectData <- rbind(subjectTrain, subjectTest)
+activityData <- rbind(yTrain, yTest)
+
+# Name columns and merge columns
+
+colnames(subjectData) <- "subject"
+colnames(activityData) <- "activityNum"
+activityLabels<- read.table("activity_labels.txt")
+colnames(activityLabels) <- c("activityNum", "activityNam")
+dataSubjAct<- cbind(subjectData, activityData)
+dataHAR <- cbind(dataSubjAct, dataHAR)
+
+
+#2.  Extracts only the measurements on the mean and standard deviation for each measurement. 
+
+# extract std and then mean colmns and column bind with subject and activity
+datastdmean <- cbind(dataHAR[,grep("std", names(dataHAR))],dataHAR[,grep("mean", names(dataHAR))])
+datastdmean <- cbind(dataSubjAct, datastdmean)
+head(datastdmean)
+#3.  Uses descriptive activity names to name the activities in the data set
+# Use the data set activity names for each a ctivity number
+datastdmean <- merge(activityLabels, datastdmean , by="activityNum", all.x=TRUE)
+head(datastdmean)
+#4.  Appropriately labels the data set with descriptive variable names.
+
+# Use names provided
+
+names(datastdmean)<-gsub("std()", "SD", names(datastdmean))
+names(datastdmean)<-gsub("mean()", "MEAN", names(datastdmean))
+names(datastdmean)<-gsub("^t", "time", names(datastdmean))
+names(datastdmean)<-gsub("^f", "frequency", names(datastdmean))
+names(datastdmean)<-gsub("Acc", "Accelerometer", names(datastdmean))
+names(datastdmean)<-gsub("Gyro", "Gyroscope", names(datastdmean))
+names(datastdmean)<-gsub("Mag", "Magnitude", names(datastdmean))
+names(datastdmean)<-gsub("BodyBody", "Body", names(datastdmean))
+## clean up column names
+# get names
+tidy.colnames <- names(datastdmean)
+# remove non-alphabetic characters and convert to lowercase
+tidy.colnames <- tolower(gsub("[^[:alpha:]]", "", tidy.colnames))
+# then use the list as column names for data
+colnames(datastdmean) <- tidy.colnames
+head(datastdmean)
+
+write.table(datastdmean, "merged_HAR_data.txt") # write out the 1st dataset
+#5.  From the data set in step 4, creates a second, independent tidy data set with the 
+# average of each variable for each activity and each subject.
+
+# find the mean for each combination of subject and activity
+meanData <- aggregate(datastdmean[, 3:ncol(datastdmean)],
+                       by=list(subject = datastdmean$subject, 
+                               activity = datastdmean$activitynam),
+                       mean)
+head(meanData)
+
+# write the data for course upload
+write.table(format(meanData, scientific=T), "tidy.txt",
+            row.names=F, col.names=F, quote=2)
+```
